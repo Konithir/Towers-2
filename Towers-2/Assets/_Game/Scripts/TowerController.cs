@@ -1,4 +1,6 @@
+using System.Threading;
 using System.Threading.Tasks;
+using TMPro;
 using UnityEngine;
 
 namespace Konithir.Tower2
@@ -17,8 +19,14 @@ namespace Konithir.Tower2
         [SerializeField]
         private GameObject _bulletSpawnPoint;
 
+        [SerializeField]
+        private TextMeshProUGUI _livesCounter;
+
         private BulletController _bullet;
         private int _currentLives;
+        private CancellationTokenSource _cancellationTokenSourceRotation;
+        private CancellationTokenSource _cancellationTokenSourceShooting;
+        private CancellationTokenSource _cancellationTokenSourceRespawn;
 
         private const int _MIN_ROTATE_DELAY = 10;
         private const int _MAX_ROTATE_DELAY = 1000;
@@ -34,25 +42,59 @@ namespace Konithir.Tower2
             {
                 RespawnAfterDelay();
             }
+            else
+            {
+                _towerManager.CheckForGameEnd();
+            }
         }
 
         public async void StartRotating()
         {
-            while(gameObject.activeInHierarchy)
-            {
-                await Task.Delay(Random.Range(_MIN_ROTATE_DELAY, _MAX_ROTATE_DELAY));
+            _cancellationTokenSourceRotation = new CancellationTokenSource();
 
-                transform.localEulerAngles = new Vector3(0, Random.Range(0, 360), 0);
+            try
+            {
+                while (gameObject.activeInHierarchy)
+                {
+                    await Task.Delay(Random.Range(_MIN_ROTATE_DELAY, _MAX_ROTATE_DELAY), _cancellationTokenSourceRotation.Token);
+
+                    transform.localEulerAngles = new Vector3(0, Random.Range(0, 360), 0);
+                }
             }
+            catch
+            {
+
+            }
+            finally
+            {
+                _cancellationTokenSourceRotation.Dispose();
+                _cancellationTokenSourceRotation = null;
+            }
+          
         }
 
         public async void StartShooting()
         {
-            while (gameObject.activeInHierarchy)
+            _cancellationTokenSourceShooting = new CancellationTokenSource();
+
+            try
             {
-                await Task.Delay(_SHOOTING_DELAY);
-                Shoot();
+                while (gameObject.activeInHierarchy)
+                {
+                    await Task.Delay(_SHOOTING_DELAY, _cancellationTokenSourceShooting.Token);
+                    Shoot();
+                }
             }
+            catch
+            {
+
+            }
+            finally
+            {
+                _cancellationTokenSourceShooting.Dispose();
+                _cancellationTokenSourceShooting = null;
+            }
+         
         }
 
         public void Shoot()
@@ -61,10 +103,16 @@ namespace Konithir.Tower2
             _bullet.ResetBullet();
 
             _bullet.transform.position = _bulletSpawnPoint.transform.position;
-            _bullet.transform.localEulerAngles = _bulletSpawnPoint.transform.forward;
+            _bullet.transform.localEulerAngles = transform.localEulerAngles;
 
             _bullet.gameObject.SetActive(true);
             _bullet.AddForceForward();
+            _bullet.StartDisableCountdown();
+        }
+
+        public void UpdateLivesCounter()
+        {
+            _livesCounter.text = _currentLives.ToString();
         }
 
         public void ResetTower()
@@ -72,12 +120,43 @@ namespace Konithir.Tower2
             _currentLives = _maxLives;
         }
 
+        public void CancelTasks()
+        {
+            if (_cancellationTokenSourceRotation != null)
+            {
+                _cancellationTokenSourceRotation.Cancel();
+            }
+
+            if (_cancellationTokenSourceShooting != null)
+            {
+                _cancellationTokenSourceShooting.Cancel();
+            }
+
+            if (_cancellationTokenSourceRespawn != null)
+            {
+                _cancellationTokenSourceRespawn.Cancel();
+            }
+        }
+
         private async void RespawnAfterDelay()
         {
-            await Task.Delay(_DEATH_DELAY);
-            _towerManager.SpawnTower(this, false);
+            _cancellationTokenSourceRespawn = new CancellationTokenSource();
+
+            try
+            {
+                await Task.Delay(_DEATH_DELAY, _cancellationTokenSourceRespawn.Token);
+                _towerManager.SpawnTower(this, false);
+            }
+            catch
+            {
+
+            }
+            finally
+            {
+                _cancellationTokenSourceRespawn.Dispose();
+                _cancellationTokenSourceRespawn = null;
+            }
         }
     }
-
 }
 
