@@ -82,7 +82,10 @@ namespace Konithir.Tower2
                 while (gameObject.activeInHierarchy)
                 {
                     await Task.Delay(_SHOOTING_DELAY, _cancellationTokenSourceShooting.Token);
-                    Shoot();
+                    if(gameObject.activeInHierarchy)
+                    {
+                        Shoot();
+                    }
                 }
             }
             catch

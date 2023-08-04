@@ -14,9 +14,12 @@ namespace Konithir.Tower2
         public UnityEvent OnGameEnd;
 
         private int _tempActiveTowers;
+        private int _lastTowerAmount;
 
         public void SpawnTowers(int amountToSpawn)
         {
+            _lastTowerAmount = amountToSpawn;
+
             for(int i = 0; i < amountToSpawn; i++)
             {
                 SpawnTower(_towerControllers[i],true);
@@ -35,6 +38,14 @@ namespace Konithir.Tower2
             towerController.UpdateLivesCounter();
             towerController.StartRotating();
             towerController.StartShooting();
+        }
+
+        public void SpawnSameAmount()
+        {
+            for (int i = 0; i < _lastTowerAmount; i++)
+            {
+                SpawnTower(_towerControllers[i], true);
+            }
         }
 
         public void DisableAllTowers()
